@@ -1,0 +1,169 @@
+<!DOCTYPE html> 
+<html lang="de"> 
+  <head> 
+  <link rel="stylesheet" href="css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8"> 
+    <title>GPXViewer</title>
+    <script type="text/javascript">
+      var Overviewmapcontrol = true;
+			var Shtrvmitt = false;
+			var Shtrvmittwob = true;
+			var Trcolmod = "v";
+			var Fullscreenbutton = true;
+			var Topac = 1;
+			var Shtrtabs = true;
+			var Profilfillopac = 0.3;
+			var Tracks_dateiuebergreifend_verbinden = true;
+			var Bildwegpunkticon = "";
+			var Speedfaktor = 3.6;// 3.6 bei m/s, 1.609344 bei mph, 1 bei km/h
+
+
+
+			function showBigMap(fullscreen){
+				var mapStyle = document.getElementById("map1").style;
+				if (fullscreen){
+					mapStyle.width = "100%";
+					mapStyle.height = "1000px";
+				}else {
+					mapStyle.width = "49%";
+					mapStyle.height = "500px";
+				}
+			}
+
+			
+    </script>
+    <script type="text/javascript" src="GM_Utils/GPX2GM.js"></script>
+      <script type="text/javascript" src="GM_Utils/FileSaver.min.js"></script>
+		<style type="text/css">
+		  body { width:calc(100% - 40px);padding: 10px 10px 10px 30px }
+		  #map1 { width:49%;height:500px;display:inline-block;vertical-align:top }
+			#map1_profiles { margin-left:1%;width:49%;display:inline-block }
+			#map1_hp { height:200px;margin-top:10px }
+			#map1_sp { height:200px;margin-top:-37px }
+			#map1_vp { height:200px;margin-top:37px }
+			#map1_hrp { height:200px;margin-top:37px }
+			#map1_cadp { height:200px;margin-top:-37px }
+			#map1_vpt{height:200px;margin-left:50%; width:49%;}
+		</style>
+  </head>
+  <body>
+   <h1>GPXViewer</h1>
+   <div style="margin-top: 35px;font-size: 16px;">
+   GPX-Datei: <input type="file" id="file" multiple accept=".gpx"> <!--</div>
+
+   <div style="margin-top: 5px;font-size: 16px;">-->
+       <br/>
+   <!--Fullscreen:
+    <label class="switch">
+      <input type="checkbox" class="switch-input" onchange="showBigMap(this.checked);">
+      <span class="switch-label" data-on="On" data-off="Off"></span>
+      <span class="switch-handle"></span>
+    </label>
+       <input type="checkbox" checked id="waypointFilter"/>Only show waypoints for shown track-->
+
+    </div>
+  <div style="display:table;margin:10px">
+    <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; padding: 10px;padding-top:5px;height:130px;"><form>
+        <span style="font-size: larger; font-weight: bold;">Thresholds</span> <br/>
+      Idle Speed: &lt;<input type="text" value="0.2" id="idleSpeed" style="width:40px">km/h  <br/>
+        Walking Speed: &lt;<input type="text" value="8" id="walkingSpeed" style="width:40px">km/h<br/>
+        <input type="checkbox" checked id="useBiking"/>Biking Speed: &lt;<input type="text" value="32" id="bikingSpeed" style="width:40px">km/h<br/>
+        Driving Speed: else <br/>
+      <input type="button" value="Update" id="update"/> <input type="reset" value="Reset" />
+        </form>
+    </div>
+   <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:130px;">
+       <span style="font-size: larger; font-weight: bold;" id="recordingHeader">Recording</span><br/>
+       <input type="button"  onclick="javascript:JB.startRecording()" value="Start" id="recording" />
+	   <input type="button" onclick="javascript:JB.save()" value="Save" id="save" disabled/>
+       <input type="button" value="Clear" onclick="javascript:JB.clearRecording()"/><br/>
+       Activity (up to selected point in time)
+   <select id="activity"  onChange="this.style.color=this.options[this.selectedIndex].style.color" style="color: rgb(0,176,80)">
+       <option value="Idle" style="color: rgb(130,130,130)">● Idle</option>
+       <option value="Walking" selected style="color: rgb(0,176,80)">● Walking</option>
+       <option value="Biking" style="color: rgb(73,122,255);">● Biking</option>
+       <option value="Driving" style="color: rgb(255,73,73)">● Driving</option>
+   </select><br/>
+       Bis <input type="text" size="5" id="endTimepoint">
+       <input type="button" value="+" onclick="javascript:JB.addActivity()">
+
+        <!--<input type="button" value="Clear Timestamps" onclick="javascript:JB.clearTimestamps()"/>-->
+    </div>
+	  <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:130px;">
+		  <span style="font-size: larger; font-weight: bold;" >Ausgewählt</span><br/>
+		  <table>
+			  <tr><td>Von</td><td id="von"></td></tr>
+			  <tr><td>Bis</td><td id="bis"></td></tr>
+			  <tr><td>Länge&nbsp;&nbsp;&nbsp;</td><td id="laenge"></td></tr>
+			  <tr><td>Dauer</td><td id="dauer"></td></tr>
+		  </table>
+		  <input type="button" onclick="javascript:copyInfosToClipboard()" value="Infos kopieren" title="Kopiert die Infos, so dass sie per Copy und Paste ins Excelsheet kopiert werden können">
+	  </div>
+   </div>
+
+  <div>
+     <div id="map1" class="gpxview:allgäu201508091440.gpx:OSM_Landscape"><noscript><p>Zum Anzeigen der Karte wird Javascript ben&ouml;tigt.</p></noscript></div>
+     <div id="map1_profiles" >
+     		<div id="map1_vp" class="pltx"></div>
+			<div id="map1_hp" class="pltx"></div>
+			<!--<div id="map1_sp" class="pltx"></div>-->
+			
+			<!--<div id="map1_hrp" class="pltx"></div>
+			<div id="map1_cadp" class="pltx"></div>-->
+     </div>
+    
+			<div id="map1_vpt" ></div>
+  </div>
+   <span>Click + Doppelklick im Profil zoomt Ausschnitt heran (z.B. zur Extraktion von Wanderungen)</span><br/>
+   <span>Die Aktivitäten können auch mit Hilfe von Tastendrücken geändert werden (D, W, B, I)</span><br/>
+    <b>Wanderungen:</b>
+     <textarea id="wanderungen" style="width:80%; height:100px"></textarea>
+     <hr><p>11. 3. 2015 <a href="http://www.j-berkemeier.de/GPXViewer/">GPX-Viewer</a></p>
+		 
+	 <script>
+		// Automatisches ein-/ausblenden von Profilen
+		JB.GPX2GM.callback = function(pars) { 
+			JB.Debug_Info("callback",pars.id+" "+pars.type,false);
+			var pltx = document.getElementById("map1_profiles").getElementsByClassName("pltx");
+			//var pltt = document.getElementById("map1_profiles").getElementsByClassName("pltt");
+			var p;
+			switch(pars.type) {
+				case "Profile_v":
+					document.getElementById("map1_profiles").style.display = "inline-block";
+					for(var i=0;i<pltx.length;i++) {
+						pltx[i].style.display = "";
+						JB.addClass("no_x",pltx[i]);
+					}
+					/*for(var i=0;i<pltt.length;i++) {
+						pltt[i].style.display = "";
+						JB.addClass("no_x",pltt[i]);
+					}*/
+					for(var i=pltx.length-1;i>=0;i--) {
+						var ptype = pltx[i].id.substr(5);
+						if(pars.profil[ptype].pflag) {
+							JB.removeClass("no_x",pltx[i]);
+							break;
+						}
+					}
+					/*for(var i=pltt.length-1;i>=0;i--) {
+						var ptype = pltt[i].id.substr(5);
+						if(pars.profil[ptype].pflag) {
+							JB.removeClass("no_x",pltt[i]);
+							break;
+						}
+					}*/
+					break;
+				case "Profile_n":
+					document.getElementById("map1_profiles").style.display = "inline-block";
+					//if(!wp) for(var i=0;i<pltx.length;i++) pltx[i].style.display = "none";
+					//if(!tp) for(var i=0;i<pltt.length;i++) pltt[i].style.display = "none";
+					for(p in pars.profil) if(!pars.profil[p].pflag && pars.profil[p].ele) pars.profil[p].ele.style.display = "none";
+					break;
+			}
+			return true;
+		}  // JB.GPX2GM.callback
+	 </script>
+	 
+  </body>
+</html>
