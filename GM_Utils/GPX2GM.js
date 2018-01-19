@@ -23,6 +23,8 @@ var fromTimeStamp = 0;
 var lastTimeStamp = 0;
 var toTimestamp = 0;
 var currentTrackInfo = "";
+var currentDate = "";
+
 
 var colors = {
     'NoSpeed': "rgb(255,73,73)",
@@ -176,6 +178,19 @@ JB.getColor = function(speed){
 	else return  colors["Driving"];
 }
 
+JB.getActivity = function (speed){
+	var maxIdleSpeed = document.getElementById("idleSpeed").value;
+	var maxWalkingSpeed = document.getElementById("walkingSpeed").value;
+	var maxBikingSpeed = document.getElementById("bikingSpeed").value;
+    var useBiking = document.getElementById("useBiking").checked;
+    
+	if (speed == -1) return "Idle";
+	else if (speed < maxIdleSpeed) return "Idle"
+	else if (speed < maxWalkingSpeed) return "Walking";
+	else if (useBiking && speed < maxBikingSpeed) return "Biking";
+	else return "Driving";
+}
+
 JB.ShowWanderungInfo = function(gpxdaten){
 	document.getElementById("wanderungen").value = "";
 	JB.Debug_Info("12", "ShowWanderungInfo", false);
@@ -258,8 +273,10 @@ JB.addActivity = function(){
     // return JB.getDate(sec) +  "T" + twoDigits(d.getUTCHours())+":"+twoDigits(d.getUTCMinutes())+":"+twoDigits(d.getUTCSeconds())+".000Z";
     // Format: 2016-03-26T16:50:00.000Z"
     var index = timepoints.length;
+    console.log("Index: " + index + " " + time + "<="+timepoints[0][0]);
     // overwrite first idle Activity when earlier time entered
-    if (time <= startTime) index = 0;
+    if (index > 0 && time <= timepoints[0][0])
+    	index = 0;
     // otherwise add first idle Activity
     else if (timepoints.length == 0){
         timepoints[0] = [startTime, "IDLE", colors["Idle"]];
@@ -290,6 +307,25 @@ JB.saveTimeline = function(){
     //save as 2016-09-20.json (using first timestamp)
     saveAs(blob, JB.getDate(timepoints[0][0]) + ".json");
     JBMapObject.MyShow();
+}
+
+
+JB.getTimelineAsJson = function(){
+	var lines = document.getElementById("timelines").value.split("\n");
+	var json = "[";
+	for (var i=0; i<lines.length; i++){
+		var elements = lines[i].split(" - ");
+		if (elements.length > 1){
+			json+="{\"endDate\": \""+currentDate+"T"+elements[1]+":00.000Z\", \"activity\": \""+elements[0].toUpperCase()+"\"},";
+			//"endDate": "2016-03-26T06:35:00.000Z", "activity": "IDLE"},
+		}
+	}
+	json=json.substr(0,json.length-1); //removes the last ","
+	json+="]";
+	alert(json);
+	var blob = new Blob([json], {type: "text/plain;charset=utf-8"});
+    //save as 2016-09-20.json (using first timestamp)
+    saveAs(blob, currentDate + ".json");
 }
 //Melanie: End of Add Timepoints
 var JBMapObject;
@@ -771,6 +807,10 @@ JB.makeMap = function(ID) {
 			show();
 		}
 
+		this.myRefreshTimeline = function(){
+			refreshTimeline();
+		}
+
 		var profilcanvas = "X";
 		var mapidleevent = null;
 
@@ -780,6 +820,7 @@ JB.makeMap = function(ID) {
 			if (JB.gc.profilflag) {
 				JB.Wait(ID, ["gra", "plot"], function() {
 					showProfiles();
+					refreshTimeline();
 					if (profilcanvas == "X") {
 						profilcanvas = document.getElementById(ID + "_profiles");
 						if (profilcanvas)
@@ -860,6 +901,7 @@ JB.makeMap = function(ID) {
 			for (var i = 0; i < gpxdaten.wegpunkte.anzahl; i++) {
                 JB.Debug_Info("Waypoint", "Wegpunkt: "+gpxdaten.wegpunkte.wegpunkt[i].name, false);
 				if (gpxdaten.wegpunkte.wegpunkt[i].cluster == -1 && (!waypointFilter || timeMatches(gpxdaten.wegpunkte.wegpunkt[i].time))) {
+					console.log("Waypoint " + gpxdaten.wegpunkte.wegpunkt[i].name + " matches");
 					mrk = showWpt(gpxdaten.wegpunkte.wegpunkt[i]);
 					for (var m = 0; m < mrk.length; m++) markers.push(mrk[m]);
 				}
@@ -875,7 +917,7 @@ JB.makeMap = function(ID) {
 		} // showWpts 
 
 		function timeMatches(waypointTime){
-			if (isNaN(waypointTime) || gpxdaten.tracks.anzahl==0) return true;
+			if (isNaN(waypointTime) || waypointTime === 0 || gpxdaten.tracks.anzahl==0) return true;
 			waypointTime = waypointTime/3600;
             //only one track shown
             if (chktrk.status.length == 1){
@@ -1245,6 +1287,7 @@ JB.makeMap = function(ID) {
 					lon = daten.lon;
 					tzurl += lat + "," + lon + "&timestamp=" + t;
 					window.setTimeout(function() {
+						//Daten laden
 						JB.loadFile({
 							name: tzurl
 						}, "a", function(result, status) {
@@ -1405,6 +1448,9 @@ JB.makeMap = function(ID) {
 								pr.diag.scale(daten);
 						}
 					}
+					
+					
+                            
 				}
 			}
 			profil.setflags(gpxdaten.tracks, -1);
@@ -1488,6 +1534,23 @@ JB.makeMap = function(ID) {
 				});
 		} // showProfiles
 
+		function refreshTimeline(){
+			if (!(chktrk && chktrk.status[0])) return;
+			if (!gpxdaten) return;
+			// Melanie
+			var amountSelectedTracks = 0;
+			for (var i = 0; i < gpxdaten.tracks.anzahl; i++)
+				if (chktrk.status[gpxdaten.tracks.anzahl == 1 ? 0 : i + 1]) 
+					amountSelectedTracks++;
+			for (var i = 0; i < gpxdaten.tracks.anzahl; i++) {
+					var tracki = gpxdaten.tracks.track[i];
+					var daten = tracki.daten;
+					if (daten.length > 1 && chktrk.status[gpxdaten.tracks.anzahl == 1 ? 0 : i + 1] && (amountSelectedTracks==1 || !tracki.isWanderung)) {
+						JB.generateTimelines(daten);
+					}
+				}
+		}
+
 		function markerstart() {
 			JB.Debug_Info(id, "markerstart", false);
 			JB.MoveMarker.init(Map, JB.icons.MoveMarker);
@@ -1566,6 +1629,8 @@ JB.makeMap = function(ID) {
             if (recording) return;
             if (fromTimeStamp == 0){
                 console.log("No last timestamp found");
+                toTimestamp = 0;
+                show();
                 return;
             }
             if (toTimestamp != 0){
@@ -1588,6 +1653,7 @@ JB.makeMap = function(ID) {
 
 
 	} // JB.makeMap
+
 
 
 function getSubset(daten){
@@ -1727,6 +1793,10 @@ JB.sec2stringSimple = function(sec, off) {
 		return d.getUTCDate() + "." + (d.getUTCMonth() + 1) + "." + d.getUTCFullYear() + " " + d.getUTCHours() + ":" + (d.getUTCMinutes() < 10 ? "0" : "") + d.getUTCMinutes();
 	} // sec2string
 
+JB.sec2stringTime = function (sec, off){
+		var d = new Date(sec * 1000 + off * 1000);
+		return d.getUTCHours() + ":" + (d.getUTCMinutes() < 10 ? "0" : "") + d.getUTCMinutes();
+}
 JB.Zeitstring = function(sekunden) {
 		var h = 0,
 			m = 0,
@@ -3081,10 +3151,91 @@ JB.lpgpx = function(fns, id, callback) {
 		} // korr
 
 		var wanderungen = [];
+
+
+		/*Melanie new function*/
+		function fuseSameDayTracks(trk, defaultTime){
+			if (trk === undefined || trk.length === 0) return trk;
+			var trkpts = trk[trk.length-1].getElementsByTagName("trkpt"); // Trackpunkte
+				
+			var minTimeStampNextTrack = getTime(trkpts[0], defaultTime);
+			var dayNextTrack = JB.getDay(minTimeStampNextTrack*3600, JB.gc.tdiff*3600)
+				
+			for (var k = trk.length-2; k >= 0; k--) {
+				trkpts = trk[k].getElementsByTagName("trkpt"); // Trackpunkte
+				
+				var minTimeStamp = getTime(trkpts[0], defaultTime);
+				var day = JB.getDay(minTimeStamp*3600, JB.gc.tdiff*3600)
+
+				if (day == dayNextTrack){
+					JB.Debug_Info("Fuse","Fuse "+k + " and " + (k+1)+ " - " + day);
+					while (trk[k+1].childNodes.length > 0) {
+    					trk[k].appendChild(trk[k+1].childNodes[0]);
+					}
+					trk[k+1].parentNode.removeChild(trk[k+1]);
+				}
+				dayNextTrack = day;
+
+			}
+			return trk;
+		}
 		
 		/*Melanie new function*/
-		function analyseGPX(xml) {
-			var trk = xml.documentElement.getElementsByTagName("trk");
+		JB. generateTimelines = function(daten){
+			var maxIdleSpeed = document.getElementById("idleSpeed").value;
+			var maxWalkingSpeed = document.getElementById("walkingSpeed").value;
+			var maxBikingSpeed = document.getElementById("bikingSpeed").value;
+			var minStability = document.getElementById("minStabilityInMin").value/60;
+			var minGap = document.getElementById("minGapInMin").value/60;
+			var activity = "Idle";
+			var minTimeStamp = daten[0].tabs;
+			var maxTimeStamp = daten[daten.length-1].tabs;
+			var aTimestamp = minTimeStamp;
+			currentDate = JB.getDate(minTimeStamp*3600);
+			document.getElementById("timelines").value = "";
+			
+			//TODO: ist Zeitberechnung richtig?? Offset?
+			for (var i=0; i<daten.length; i++){
+				var timestamp = daten[i].tabs;
+				var speed = daten[i].v;
+				/*var tmp = getTag(trkpts[i], "speed", "nf", false);
+				if (tmp == "nf")
+					tmp = getTag(trkpts[i], "gpx10:speed", "nf", false);
+				if (tmp != "nf")
+					speed = parseFloat(tmp) * JB.gc.speedfaktor;*/
+				var a = JB.getActivity(speed);
+				
+				//if there ist a greater gap in the data, treat it as idle
+				if (timestamp > aTimestamp + minGap){ 
+					a = "Idle";
+					JB.Debug_Info("Gap", JB.sec2stringTime(timestamp * 3600, JB.gc.tdiff * 3600)+" "+JB.sec2stringTime(aTimestamp * 3600, JB.gc.tdiff * 3600));
+				}
+				// JB.Debug_Info("Timeline","Current: " + JB.sec2stringSimple(aTimestamp * 3600, JB.gc.tdiff * 3600 + tzoff) + " " + activity+ " - New: " + JB.sec2stringSimple(timestamp * 3600, JB.gc.tdiff * 3600 + tzoff) + " "+a);
+				if (a === activity){
+					aTimestamp = timestamp;
+				}
+				//different activities and sufficient time elapsed
+				else if (timestamp >= aTimestamp + minStability){
+					document.getElementById("timelines").value += activity + " - "+JB.sec2stringTime(aTimestamp * 3600, JB.gc.tdiff * 3600) +
+					"\n";
+					activity = a;
+					aTimestamp = timestamp;
+				}
+			}
+			
+			//last item
+			if (activity !== "Idle"){
+				document.getElementById("timelines").value += activity + " - "+JB.sec2stringTime(maxTimeStamp * 3600, JB.gc.tdiff * 3600) +
+					"\n";
+			}
+			
+		document.getElementById("timelines").scrollTop=0;
+		}
+
+
+		/*Melanie new function*/
+		function extractWanderungen(trk) {
+			//var trk = xml.documentElement.getElementsByTagName("trk");
 			var wanderungenInFile = [];
 			var maxIdleSpeed = document.getElementById("idleSpeed").value;
 			var maxWalkingSpeed = document.getElementById("walkingSpeed").value;
@@ -3239,8 +3390,10 @@ JB.lpgpx = function(fns, id, callback) {
 			// Tracks 
 			var trk = xml.documentElement.getElementsByTagName("trk");
 			//modified by Melanie
-			var wanderungen = analyseGPX(xml);
-            
+			//Fuse Tracks
+			trk = fuseSameDayTracks(trk,defaultTime);
+			var wanderungen = extractWanderungen(trk);
+			        
             
             
 			JB.Debug_Info(id, trk.length + " Tracks gefunden und " + wanderungen.length + " Wanderungen", false);
@@ -3538,6 +3691,7 @@ JB.lpgpx = function(fns, id, callback) {
 			JB.Debug_Info(id, wpts.length + " Wegpunkte gefunden", false);
 			for (var i = 0; i < wpts.length; i++) { // Wegpunktdaten
 				var wpt = wpts[i];
+				console.log("Parsing Waypoint " + wpt)
 				var lat = parseFloat(wpt.getAttribute("lat"));
 				var lon = parseFloat(wpt.getAttribute("lon"));
 				if (!usegpxbounds) {
@@ -3561,15 +3715,17 @@ JB.lpgpx = function(fns, id, callback) {
 				if (a[1] !== undefined && a[1].indexOf(",")!= -1){
 				    var dates = a[1].split(", ");
                     waypoint.time = utc2sec(dates[0] + "T12:00:00Z");
-				    for (var i= 1; i<dates.length; i++) {
+				    for (var j= 1; j<dates.length; j++) {
 				        var w = getCopy(waypoint);
-                        w.time = utc2sec(dates[i] + "T12:00:00Z");
+                        w.time = utc2sec(dates[j] + "T12:00:00Z");
                         gpxdaten.wegpunkte.wegpunkt.push(w);
                     }
 
                 }else {
                     if (a[1] !== undefined){
                         waypoint.time = utc2sec(a[1] + "T12:00:00Z");
+                    }else{
+                    	waypoint.time = 0;
                     }
                     gpxdaten.wegpunkte.wegpunkt.push(waypoint);
                 }
@@ -3884,6 +4040,9 @@ JB.GPX2GM.start = function() {
 			document.getElementById("update").onclick = function(){
 				maps["Karte_map1"].MyShow();
 			}
+			document.getElementById("updateTimeline").onclick = function(){
+				maps["Karte_map1"].myRefreshTimeline();
+			}
 			//--Melanie
 		}); // JB.LoadScript("GPX2GM_Defs.js")
 	} // JB.GPX2GM.start
@@ -3925,6 +4084,8 @@ document.onkeydown = function(evt) {
 function copyInfosToClipboard(){
     copyTextToClipboard(currentTrackInfo);
 }
+
+
 function copyTextToClipboard(text) {
     var textArea = document.createElement("textarea");
 

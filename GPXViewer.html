@@ -38,17 +38,18 @@
 		<style type="text/css">
 		  body { width:calc(100% - 40px);padding: 10px 10px 10px 30px }
 		  #map1 { width:49%;height:500px;display:inline-block;vertical-align:top }
-			#map1_profiles { margin-left:1%;width:49%;display:inline-block }
-			#map1_hp { height:200px;margin-top:10px }
+			#map1_profiles { margin-left:1%;width:49%;display:inline-block;margin-top:20px; }
+			#map1_hp { height:150px;margin-top:10px }
 			#map1_sp { height:200px;margin-top:-37px }
-			#map1_vp { height:200px;margin-top:37px }
+			#map1_vp { height:150px;margin-top:10px }
 			#map1_hrp { height:200px;margin-top:37px }
 			#map1_cadp { height:200px;margin-top:-37px }
-			#map1_vpt{height:200px;margin-left:50%; width:49%;}
+			#map1_vpt{height:150px;margin-left:50%; width:49%;margin-top:-140px;}
 		</style>
   </head>
   <body>
    <h1>GPXViewer</h1>
+   <div style="margin-top:-20px;text-align:right"><a href="?debuginfo">Debug</a>&nbsp;&nbsp;<a href="?">Normal</a></div>
    <div style="margin-top: 35px;font-size: 16px;">
    GPX-Datei: <input type="file" id="file" multiple accept=".gpx"> <!--</div>
 
@@ -66,14 +67,25 @@
   <div style="display:table;margin:10px">
     <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; padding: 10px;padding-top:5px;height:130px;"><form>
         <span style="font-size: larger; font-weight: bold;">Thresholds</span> <br/>
-      Idle Speed: &lt;<input type="text" value="0.2" id="idleSpeed" style="width:40px">km/h  <br/>
-        Walking Speed: &lt;<input type="text" value="8" id="walkingSpeed" style="width:40px">km/h<br/>
-        <input type="checkbox" checked id="useBiking"/>Biking Speed: &lt;<input type="text" value="32" id="bikingSpeed" style="width:40px">km/h<br/>
+      Idle Speed: &lt;<input type="text" value="0.2" id="idleSpeed" style="width:40px"> km/h  <br/>
+        Walking Speed: &lt;<input type="text" value="8" id="walkingSpeed" style="width:40px"> km/h<br/>
+        <input type="checkbox" checked id="useBiking"/>Biking Speed: &lt;<input type="text" value="32" id="bikingSpeed" style="width:40px"> km/h<br/>
         Driving Speed: else <br/>
       <input type="button" value="Update" id="update"/> <input type="reset" value="Reset" />
         </form>
     </div>
-   <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:130px;">
+
+	  <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:130px;">
+		  <span style="font-size: larger; font-weight: bold;" >Ausgewählt</span><br/>
+		  <table>
+			  <tr><td>Von</td><td id="von"></td></tr>
+			  <tr><td>Bis</td><td id="bis"></td></tr>
+			  <tr><td>Länge&nbsp;&nbsp;&nbsp;</td><td id="laenge"></td></tr>
+			  <tr><td>Dauer</td><td id="dauer"></td></tr>
+		  </table>
+		  <input type="button" onclick="javascript:copyInfosToClipboard()" value="Infos kopieren" title="Kopiert die Infos, so dass sie per Copy und Paste ins Excelsheet kopiert werden können">
+	  </div>
+   <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:180px;">
        <span style="font-size: larger; font-weight: bold;" id="recordingHeader">Recording</span><br/>
        <input type="button"  onclick="javascript:JB.startRecording()" value="Start" id="recording" />
 	   <input type="button" onclick="javascript:JB.save()" value="Save" id="save" disabled/>
@@ -86,25 +98,24 @@
        <option value="Driving" style="color: rgb(255,73,73)">● Driving</option>
    </select><br/>
        Bis <input type="text" size="5" id="endTimepoint">
-       <input type="button" value="+" onclick="javascript:JB.addActivity()">
-
+       <input type="button" value="+" onclick="javascript:JB.addActivity()"><br/>
+   <span>Die Aktivitäten können auch mit Hilfe von Tastendrücken geändert werden (D, W, B, I)</span>
         <!--<input type="button" value="Clear Timestamps" onclick="javascript:JB.clearTimestamps()"/>-->
     </div>
-	  <div style="float: left; width: 200px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:130px;">
-		  <span style="font-size: larger; font-weight: bold;" >Ausgewählt</span><br/>
-		  <table>
-			  <tr><td>Von</td><td id="von"></td></tr>
-			  <tr><td>Bis</td><td id="bis"></td></tr>
-			  <tr><td>Länge&nbsp;&nbsp;&nbsp;</td><td id="laenge"></td></tr>
-			  <tr><td>Dauer</td><td id="dauer"></td></tr>
-		  </table>
-		  <input type="button" onclick="javascript:copyInfosToClipboard()" value="Infos kopieren" title="Kopiert die Infos, so dass sie per Copy und Paste ins Excelsheet kopiert werden können">
+	  <div style="float: left; width: 400px; border: 1px solid gray;border-radius:5px; margin-left:10px; padding: 10px;padding-top:5px;height:180px;">
+	  	<span style="font-size: larger; font-weight: bold;" >Zeitleiste <input type="button" value="Reload" id="updateTimeline"></input></span><br/>
+    Wie lange muss eine Aktivität mind. andauern: <input type="text" id="minStabilityInMin" value="5" style="width:30px"/> Min<br/> 
+    Minimale Lücke im GPS Track, um als Idle gewertet zu werden: <input type="text" id="minGapInMin" value="10" style="width:30px"/> Min 
+    <textarea id="timelines" style="width:200px; height:100px;overflow-x: hidden;"></textarea>
+    <input type="button" onclick="javascript:JB.getTimelineAsJson()" value="Download JSON" title="Speichert Zeitleiste als JSON">
+     
 	  </div>
    </div>
 
   <div>
      <div id="map1" class="gpxview:allgäu201508091440.gpx:OSM_Landscape"><noscript><p>Zum Anzeigen der Karte wird Javascript ben&ouml;tigt.</p></noscript></div>
      <div id="map1_profiles" >
+     	<span>Click + Doppelklick im Profil zoomt Ausschnitt heran (z.B. zur Extraktion von Wanderungen). Weiterer Doppelklick hebt Filterung auf.</span>
      		<div id="map1_vp" class="pltx"></div>
 			<div id="map1_hp" class="pltx"></div>
 			<!--<div id="map1_sp" class="pltx"></div>-->
@@ -115,10 +126,12 @@
     
 			<div id="map1_vpt" ></div>
   </div>
-   <span>Click + Doppelklick im Profil zoomt Ausschnitt heran (z.B. zur Extraktion von Wanderungen)</span><br/>
-   <span>Die Aktivitäten können auch mit Hilfe von Tastendrücken geändert werden (D, W, B, I)</span><br/>
+   <br/>
+<br/>
     <b>Wanderungen:</b>
-     <textarea id="wanderungen" style="width:80%; height:100px"></textarea>
+     <textarea id="wanderungen" style="width:80%; height:100px"></textarea><br/><br/>
+
+
      <hr><p>11. 3. 2015 <a href="http://www.j-berkemeier.de/GPXViewer/">GPX-Viewer</a></p>
 		 
 	 <script>
