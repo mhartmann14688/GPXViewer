@@ -58,8 +58,17 @@ JB.Icons = function(baseurl) {
 	this["sight"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/sight.png" },
 											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };										
 	this["hike"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/hiking.png" },
-											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };										
-	
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };		
+	this["playground"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/playground.png" },
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };									
+	this["snack"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/fastfood.png" },
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };	
+	this["beach"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/beach.png" },
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };	
+	this["camping"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/campingcar.png" },
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };	
+	this["shopping"] = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/supermarket.png" },
+											shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };	
 
 	//this.myicon       = { icon:   { anchor: {x:15,y:36}, url: baseurl+"Icons/myicon.png" },
 	//                    shadow: { anchor: {x:10,y:31}, url: baseurl+"Icons/shadow.png" } };

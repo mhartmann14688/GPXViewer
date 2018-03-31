@@ -27,11 +27,13 @@ var currentDate = "";
 
 
 var colors = {
-    'NoSpeed': "rgb(255,73,73)",
+    'NoSpeed': "rgb(0,176,80)",
     'Idle': "rgb(130,130,130)",
     'Walking': "rgb(0,176,80)",
+    //'Walking': "rgb(255,73,73)",
     'Biking': "rgb(73,122,255)",
-    'Driving': "rgb(255,73,73)"
+    //'Driving': "rgb(255,73,73)"
+    'Driving': "rgba(255,73,73,0)"
 };
 
 
@@ -1226,7 +1228,7 @@ JB.makeMap = function(ID) {
 					var tracki = gpxdaten.tracks.track[i];
 					trackinfo(tracki);
 					var controls = {
-						col: tracki.farbe,
+						col: colors["NoSpeed"],
 						ocol: JB.gc.ocol,
 						opac: JB.gc.topac,
 						width: JB.gc.twidth
@@ -3715,6 +3717,7 @@ JB.lpgpx = function(fns, id, callback) {
 				if (a[1] !== undefined && a[1].indexOf(",")!= -1){
 				    var dates = a[1].split(", ");
                     waypoint.time = utc2sec(dates[0] + "T12:00:00Z");
+                    gpxdaten.wegpunkte.wegpunkt.push(waypoint);
 				    for (var j= 1; j<dates.length; j++) {
 				        var w = getCopy(waypoint);
                         w.time = utc2sec(dates[j] + "T12:00:00Z");
