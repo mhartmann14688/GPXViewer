@@ -25,15 +25,17 @@ var toTimestamp = 0;
 var currentTrackInfo = "";
 var currentDate = "";
 
+var chkwpt, chktrk, chkrt; 
 
 var colors = {
+	'Overview': "rgb(255,73,73)",
     'NoSpeed': "rgb(0,176,80)",
     'Idle': "rgb(130,130,130)",
     'Walking': "rgb(0,176,80)",
     //'Walking': "rgb(255,73,73)",
     'Biking': "rgb(73,122,255)",
-    //'Driving': "rgb(255,73,73)"
-    'Driving': "rgba(255,73,73,0)"
+    'Driving': "rgb(255,73,73)"
+    //'Driving': "rgba(255,73,73,0)"
 };
 
 
@@ -167,6 +169,14 @@ JB.getColor = function(speed){
 	var maxWalkingSpeed = document.getElementById("walkingSpeed").value;
 	var maxBikingSpeed = document.getElementById("bikingSpeed").value;
     var useBiking = document.getElementById("useBiking").checked;
+    var mode = document.getElementById("mode").value
+    if (mode === "Overview"){
+    	if (speed < maxWalkingSpeed) return colors["Overview"];
+    	else return "rgba(0,0,0,0)";
+    }
+    if (mode==="Hiking"){
+    	return colors["Walking"];
+    }
     //if no speed available
     if (speed == -1) return  colors["NoSpeed"]
 	//idle
@@ -609,10 +619,10 @@ JB.makeMap = function(ID) {
 					if (JB.gc.tkorr) getTimezone(gpxdaten);
 					if (JB.gc.pictflag) gpxdaten = pict2WP(gpxdaten);
 					gpxdaten = wp_dist(gpxdaten);
-					setMapHead();
-					show();
-					div.removeChild(infodiv);
-					JB.Debug_Info(id, "Info weg", false);
+					//setMapHead();
+					//show();
+					//div.removeChild(infodiv);
+					//JB.Debug_Info(id, "Info weg", false);
 				});
 
 
@@ -630,6 +640,11 @@ JB.makeMap = function(ID) {
 		this.GetMap = function() {
 				return Map;
 			} // GetMap
+
+
+		this.GetBoundaries = function(){
+			return 12;
+		}
 
 		this.Clear = function() {
 				var p, pr, i;
@@ -735,7 +750,8 @@ JB.makeMap = function(ID) {
 			return daten;
 		} // pict2WP
 
-		var chkwpt, chktrk, chkrt;
+		//var chkwpt, chktrk, chkrt; -> zu globalen Variablen gemacht
+
 
 		function setMapHead() {
 			JB.Debug_Info(id, "setMapHead", false);
@@ -746,12 +762,15 @@ JB.makeMap = function(ID) {
 			}
 			str += "</div>";
 			MapHead.innerHTML = str;
-			if (gpxdaten.wegpunkte.anzahl) {
+			/*if (gpxdaten.wegpunkte.anzahl) {
 				if (gpxdaten.wegpunkte.anzahl == 1) var texte = [strings.wpt + String.fromCharCode(160)];
 				else if (gpxdaten.wegpunkte.anzahl > 1) var texte = [strings.wpts + String.fromCharCode(160)];
 				chkwpt = new JB.CheckBoxGroup(MapHead.id, texte, ID + "_wpt", [], JB.gc.legende_wpt, show);
-			}
+			}*/
+			MapHead.innerHTML += "<input type=\"checkbox\" checked id=\"waypointActivated\"/>Wegpunkte ";
             MapHead.innerHTML += "<input type=\"checkbox\" checked id=\"waypointFilter\"/>Wegpunkte nur für aktuellen Track ";
+            document.getElementById("waypointActivated").onclick = show
+            document.getElementById("waypointFilter").onclick = show
             if (gpxdaten.tracks.anzahl) {
 				var texte = [];
 				if (gpxdaten.tracks.anzahl == 1) {
@@ -811,6 +830,30 @@ JB.makeMap = function(ID) {
 
 		this.myRefreshTimeline = function(){
 			refreshTimeline();
+		}
+
+		this.getNextDay = function (){
+			for (var j = 1; j < gpxdaten.tracks.anzahl - gpxdaten.wanderungen; j++) {
+					if (document.getElementById("map1_trk" + j).checked){
+						document.getElementById("map1_trk" + j).checked=false;
+						chktrk.status[j]= false;
+						document.getElementById("map1_trk" + (j+1)).click();
+						return;
+					}
+				}
+			beep();
+		}
+
+		this.getPreviousDay = function (){
+			for (var j = 2; j <=  gpxdaten.tracks.anzahl - gpxdaten.wanderungen; j++) {
+					if (document.getElementById("map1_trk" + j).checked){
+						document.getElementById("map1_trk" + j).checked=false;
+						chktrk.status[j]= false;
+						document.getElementById("map1_trk" + (j-1)).click();
+						return;
+					}
+				}
+			beep();
 		}
 
 		var profilcanvas = "X";
@@ -877,16 +920,19 @@ JB.makeMap = function(ID) {
 					if (mapidleevent) Map.removeEvent(mapidleevent);
 					showWpts();
 				}
+				dieses.Rescale();
 			});
 		} // show
 
 		function showWpts() {
 			var mrk;
-			JB.Debug_Info(id, "showWpts", false);
-            var waypointFilter = document.getElementById("waypointFilter").checked;
+			var waypointActivated = document.getElementById("waypointActivated").checked;
+			var waypointFilter = document.getElementById("waypointFilter").checked;
+			JB.Debug_Info(id, "showWpts Activated: " + waypointActivated + " filter: "+ waypointFilter, false);
+            
 			for (var i = 0; i < markers.length; i++) JB.RemoveElement(markers[i]);
 			markers = [];
-			if (!(chkwpt && chkwpt.status[0])) return;
+			// if (!(chkwpt && chkwpt.status[0])) return;
 			if (gpxdaten.wegpunkte.anzahl > 0 && typeof(JB.GPX2GM.callback) == "function")
 				JB.GPX2GM.callback({
 					id: id,
@@ -902,7 +948,7 @@ JB.makeMap = function(ID) {
 			}
 			for (var i = 0; i < gpxdaten.wegpunkte.anzahl; i++) {
                 JB.Debug_Info("Waypoint", "Wegpunkt: "+gpxdaten.wegpunkte.wegpunkt[i].name, false);
-				if (gpxdaten.wegpunkte.wegpunkt[i].cluster == -1 && (!waypointFilter || timeMatches(gpxdaten.wegpunkte.wegpunkt[i].time))) {
+				if (waypointActivated && gpxdaten.wegpunkte.wegpunkt[i].cluster == -1 && (!waypointFilter || timeMatches(gpxdaten.wegpunkte.wegpunkt[i].time))) {
 					console.log("Waypoint " + gpxdaten.wegpunkte.wegpunkt[i].name + " matches");
 					mrk = showWpt(gpxdaten.wegpunkte.wegpunkt[i]);
 					for (var m = 0; m < mrk.length; m++) markers.push(mrk[m]);
@@ -1274,39 +1320,56 @@ JB.makeMap = function(ID) {
 				});
 		} // showTracks
 
+		function adaptTrackNames(gpxdaten){
+			for (var i=0; i< gpxdaten.tracks.anzahl -1; i++){
+				var day = JB.getDay(gpxdaten.tracks.track[i].daten[0].tabs*3600, JB.gc.tdiff*3600);
+				gpxdaten.tracks.track[i].name = (gpxdaten.tracks.track[i].isWanderung)?"Wanderung am "+day:"Track "+day;
+			}
+		}
+
+		/*Melanie new function*/
+		function fuseSameDayTracks(gpxdaten){
+			if (!gpxdaten.tracks.anzahl) return;
+			
+			var index = gpxdaten.tracks.anzahl-1;
+			while(index>0 && gpxdaten.tracks.track[index].isWanderung) index--;
+			if (index<=1) return;
+			
+			var minTimeStampNextTrack = gpxdaten.tracks.track[index].daten[0].tabs*3600;
+			var dayNextTrack = JB.getDay(minTimeStampNextTrack, JB.gc.tdiff*3600)
+			
+			for (var t = index-1; t>=0; t--){
+				var minTimeStamp = gpxdaten.tracks.track[t].daten[0].tabs*3600
+				var day = JB.getDay(minTimeStamp, JB.gc.tdiff*3600)
+				if (day == dayNextTrack){
+					JB.Debug_Info("Fuse","Fuse "+t + " and " + (t+1)+ " - " + day);
+					for (var i=0; i<gpxdaten.tracks.track[t+1].daten.length; i++){
+						gpxdaten.tracks.track[t].daten.push(gpxdaten.tracks.track[t+1].daten[i])
+					}
+					gpxdaten.tracks.track[t].laenge += gpxdaten.tracks.track[t+1].laenge
+					gpxdaten.tracks.track.splice(t+1,1);
+					gpxdaten.tracks.anzahl--;
+				}
+				dayNextTrack = day;
+			}
+
+		}
+
+		var missingAnswers = -1;
+		//einstellbarer Parameter
+		var sameTimezone = true;
 
 
 		function getTimezone(gpxdaten) {
-			var t, lat, lon, track = gpxdaten.tracks.track,
-				wp = gpxdaten.wegpunkte.wegpunkt,
-				daten, tzurl;
-			for (var i = 0; i < gpxdaten.tracks.anzahl ; i++) {
-				(function(tnr) {
-					tzurl = "https://maps.googleapis.com/maps/api/timezone/json?location=";
-					daten = track[tnr].daten[0];
-					t = Math.round(daten.tabs * 3600);
-					lat = daten.lat;
-					lon = daten.lon;
-					tzurl += lat + "," + lon + "&timestamp=" + t;
-					window.setTimeout(function() {
-						//Daten laden
-						JB.loadFile({
-							name: tzurl
-						}, "a", function(result, status) {
-							if (status == 200) {
-								var tz = JSON.parse(result.asciidata);
-								if (tz.status == "OK") {
-									JB.Debug_Info(track[tnr].name, "dstOffset:" + tz.dstOffset + ", rawOffset:" + tz.rawOffset, false);
-									gpxdaten.tracks.track[tnr].tzoff = (tz.dstOffset + tz.rawOffset);
-									trackinfo(gpxdaten.tracks.track[tnr]);
-									for (var j = 0; j < gpxdaten.tracks.track[tnr].daten.length; j++)
-										gpxdaten.tracks.track[tnr].daten[j].tabs += (tz.dstOffset + tz.rawOffset) / 3600;
-									JB.ShowWanderungInfo(gpxdaten);
-								}
-							}
-						})
-					}, tnr * 110);
-				})(i);
+			if (gpxdaten.tracks.anzahl == 0) return;
+			if (sameTimezone) {
+				missingAnswers = 1;
+				callTimeZoneData(0);
+			}else{
+				missingAnswers = gpxdaten.tracks.anzahl;
+				for (var i = 0; i < gpxdaten.tracks.anzahl ; i++) {
+					callTimeZoneData(i)
+				}
 			}
 			//Deactivated by Melanie
 			/*for (var i = 0; i < gpxdaten.wegpunkte.anzahl; i++) {
@@ -1334,6 +1397,77 @@ JB.makeMap = function(ID) {
 				})(i);
 			}*/
 		} // getTimezone
+
+		function callTimeZoneData(tnr){
+			var t, lat, lon, track = gpxdaten.tracks.track,
+				wp = gpxdaten.wegpunkte.wegpunkt,
+				daten, tzurl;
+			tzurl = "https://maps.googleapis.com/maps/api/timezone/json?location=";
+			daten = track[tnr].daten[0];
+			t = Math.round(daten.tabs * 3600);
+			lat = daten.lat;
+			lon = daten.lon;
+			tzurl += lat + "," + lon + "&timestamp=" + t;
+			window.setTimeout(function() {
+				//Daten laden
+				JB.loadFile({
+					name: tzurl
+				}, "a", function(result, status) {
+					if (status == 200) {
+						var tz = JSON.parse(result.asciidata);
+						if (tz.status == "OK") {
+							JB.Debug_Info(track[tnr].name, "dstOffset:" + tz.dstOffset + ", rawOffset:" + tz.rawOffset, false);
+							if (sameTimezone){
+								for (var i=0; i< gpxdaten.tracks.track.length; i++){
+									gpxdaten.tracks.track[i].tzoff = (tz.dstOffset + tz.rawOffset);
+									trackinfo(gpxdaten.tracks.track[i]);
+									for (var j = 0; j < gpxdaten.tracks.track[i].daten.length; j++)
+										gpxdaten.tracks.track[i].daten[j].tabs += (tz.dstOffset + tz.rawOffset) / 3600;
+									
+								}
+								for (var i=0; i< gpxdaten.tracks.trackWanderungen.length; i++){
+									gpxdaten.tracks.trackWanderungen[i].tzoff = (tz.dstOffset + tz.rawOffset);
+									trackinfo(gpxdaten.tracks.trackWanderungen[i]);
+									for (var j = 0; j < gpxdaten.tracks.trackWanderungen[i].daten.length; j++)
+										gpxdaten.tracks.trackWanderungen[i].daten[j].tabs += (tz.dstOffset + tz.rawOffset) / 3600;
+									
+								}
+							}else{
+								gpxdaten.tracks.track[tnr].tzoff = (tz.dstOffset + tz.rawOffset);
+								trackinfo(gpxdaten.tracks.track[tnr]);
+								for (var j = 0; j < gpxdaten.tracks.track[tnr].daten.length; j++)
+									gpxdaten.tracks.track[tnr].daten[j].tabs += (tz.dstOffset + tz.rawOffset) / 3600;
+							}
+							
+							
+							missingAnswers--;
+							//if all are loaded
+							if (missingAnswers === 0)
+								callbackTimezonesLoaded();
+						}
+					}
+				})
+			}, tnr * 110);
+		}
+
+
+		function callbackTimezonesLoaded(){
+			fuseSameDayTracks(gpxdaten);
+			gpxdaten.tracks.track = gpxdaten.tracks.track.concat(gpxdaten.tracks.trackWanderungen);			
+			gpxdaten.tracks.anzahl = gpxdaten.tracks.track.length;
+			adaptTrackNames(gpxdaten);
+			setMapHead();
+			JB.ShowWanderungInfo(gpxdaten);
+			show();
+			//TODO: Richtig positionieren
+			//document.getElementById("loading").style.visibility = "hidden"
+			var infodivs = document.getElementsByClassName("JBinfodiv");
+			for (var i=infodivs.length-1; i >=0; i--) infodivs[i].parentNode.removeChild(infodivs[i]);
+			//[1].parentNode.removeChild(document.getElementsByClassName("JBinfodiv")[1]);
+			//document.getElementsByClassName("JBinfodiv")[0].parentNode.removeChild(document.getElementsByClassName("JBinfodiv")[0]);
+			JB.Debug_Info(id, "Info weg", false);
+			
+		}
 
 		function trackinfo(tracki) {
 			var info = "<strong>" + tracki.name + "</strong>";
@@ -1374,23 +1508,7 @@ JB.makeMap = function(ID) {
 			wp.info = info;
 		} // wpinfo
 
-		function getminmax(daten, o, minmax) {
-			var min = 1e10,
-				max = -1e10;
-			if (typeof(minmax) != "undefined") {
-				min = minmax.min;
-				max = minmax.max;
-			}
-			for (var j = 0; j < daten.length; j++) {
-				var wert = daten[j][o];
-				if (wert < min) min = wert;
-				if (wert > max) max = wert;
-			}
-			return {
-				min: min,
-				max: max
-			};
-		} // getminmax
+		
 
 		function showProfiles() {
 			JB.Debug_Info(id, "showProfiles", false);
@@ -1617,7 +1735,8 @@ JB.makeMap = function(ID) {
                 newTimestamp = a.t;
                 JB.addTimePoints(a.t*3600);
 			}
-            console.log(fromTimeStamp + " " + lastTimeStamp + " " + newTimestamp);
+           JB.Debug_Info("Click", "From, last, new timestamp" + fromTimeStamp + " " + lastTimeStamp + " " + newTimestamp);
+            console.log("Lat:"+a.lat+" - Lon:"+a.lon+" - Speed:"+a.speed)
             // prevent click infos coming from double click
             if (lastTimeStamp != newTimestamp) {
                 fromTimeStamp = lastTimeStamp;
@@ -2257,8 +2376,33 @@ JB.Map.prototype.getPixelPerKM = function(gpxdaten) {
 
 JB.Map.prototype.rescale = function(gpxdaten) {
 		var dieses = this;
-		var sw = new google.maps.LatLng(gpxdaten.latmin, gpxdaten.lonmin);
-		var ne = new google.maps.LatLng(gpxdaten.latmax, gpxdaten.lonmax);
+		var latmin, latmax, lonmin, lonmax, minmaxlat, minmaxlon;
+		latmin = gpxdaten.latmin; 
+		latmax = gpxdaten.latmax;
+		lonmin = gpxdaten.lonmin;
+		lonmax = gpxdaten.lonmax;
+		/*Melanie - get max min Daten xxxxxx*/ 
+		//only relevant if not all tracks are selected
+        if (chktrk.status.length> 1){
+            for (var i = 1; i<chktrk.status.length; i++){
+                if (chktrk.status[i]){
+                       minmaxlon = getminmax(gpxdaten.tracks.track[i-1].daten, "lon", minmaxlon);
+                      minmaxlat = getminmax(gpxdaten.tracks.track[i-1].daten, "lat", minmaxlat);
+                }				
+            }
+            if(minmaxlat !== undefined){
+            	latmin = minmaxlat.min;
+	            latmax = minmaxlat.max;
+	            lonmin = minmaxlon.min;
+	            lonmax = minmaxlon.max;
+        	}
+        }
+        /*ENd Melanie*/
+
+
+
+		var sw = new google.maps.LatLng(latmin, lonmin);
+		var ne = new google.maps.LatLng(latmax, lonmax);
 		this.bounds = new google.maps.LatLngBounds(sw, ne);
 		this.map.fitBounds(this.bounds);
 		google.maps.event.removeListener(dieses.zoomstatus.zcev);
@@ -3152,11 +3296,12 @@ JB.lpgpx = function(fns, id, callback) {
 			return kflag;
 		} // korr
 
-		var wanderungen = [];
+		//var wanderungen = [];
 
 
-		/*Melanie new function*/
-		function fuseSameDayTracks(trk, defaultTime){
+		
+
+		/*function fuseSameDayTracks(trk, defaultTime){
 			if (trk === undefined || trk.length === 0) return trk;
 			var trkpts = trk[trk.length-1].getElementsByTagName("trkpt"); // Trackpunkte
 				
@@ -3180,8 +3325,19 @@ JB.lpgpx = function(fns, id, callback) {
 
 			}
 			return trk;
+		}*/
+
+		/*Melanie new function*/
+		JB.correctTrackAssignment = function(){
+			JB.Debug_Info("CTA","Amount of tracks " + gpxdaten.tracks.track.length);
+			for (var t = 0; t< gpxdaten.tracks.track.length; t++){
+				for (var i=0; i<gpxdaten.tracks.track[t].daten.length; i++){
+					var timestamp = gpxdaten.tracks.track[t].daten[i]
+					JB.Debug_Info("CTA", JB.sec2stringTime(timestamp.tabs * 3600, JB.gc.tdiff * 3600) )
+				}
+			}
 		}
-		
+
 		/*Melanie new function*/
 		JB. generateTimelines = function(daten){
 			var maxIdleSpeed = document.getElementById("idleSpeed").value;
@@ -3288,7 +3444,7 @@ JB.lpgpx = function(fns, id, callback) {
 									toTime: time,
 								};
 								wanderungenInFile.push(wanderung);
-								wanderungen.push(wanderung);
+								//wanderungen.push(wanderung);
 								amountDrivingTrkPts = 0;
 								amountIdleTrackPoints = 0;
 							}
@@ -3363,9 +3519,11 @@ JB.lpgpx = function(fns, id, callback) {
 				gpxdaten.tracks.hflag = gpxdaten.tracks.tflag = gpxdaten.tracks.vflag = gpxdaten.tracks.hrflag = gpxdaten.tracks.cadflag = false;
 				gpxdaten.tracks.hflagall = gpxdaten.tracks.tflagall = gpxdaten.tracks.vflagall = gpxdaten.tracks.hrflagall = gpxdaten.tracks.cadflagall = true;
 				gpxdaten.tracks.track = [];
+				gpxdaten.tracks.trackWanderungen = [];
 				gpxdaten.routen.laenge = 0;
 				gpxdaten.routen.route = [];
 				gpxdaten.wegpunkte.wegpunkt = [];
+				gpxdaten.wanderungen = 0;
 				tnr = rnr = -1;
 				if (usegpxbounds) {
 					latmin = parseFloat(gpxbounds[0].getAttribute("minlat"));
@@ -3393,8 +3551,9 @@ JB.lpgpx = function(fns, id, callback) {
 			var trk = xml.documentElement.getElementsByTagName("trk");
 			//modified by Melanie
 			//Fuse Tracks
-			trk = fuseSameDayTracks(trk,defaultTime);
+			//trk = fuseSameDayTracks(trk,defaultTime);
 			var wanderungen = extractWanderungen(trk);
+			gpxdaten.wanderungen += wanderungen.length;
 			        
             
             
@@ -3623,11 +3782,15 @@ JB.lpgpx = function(fns, id, callback) {
 					gpxdaten.tracks.vflagall &= vflag;
 					gpxdaten.tracks.hrflagall &= hrflag;
 					gpxdaten.tracks.cadflagall &= cadflag;
-					gpxdaten.tracks.track.push(tracki);
+					if (isWanderung)
+						gpxdaten.tracks.trackWanderungen.push(tracki);
+					else 
+						gpxdaten.tracks.track.push(tracki);
 					gpxdaten.tracks.laenge += Math.round(tracklen * 10) / 10;
 				}
 			}
-			gpxdaten.tracks.anzahl = gpxdaten.tracks.track.length;
+			//JB.correctTrackAssignment()
+			gpxdaten.tracks.anzahl = gpxdaten.tracks.track.length;// + gpxdaten.tracks.trackWanderungen.length;
 			gpxdaten.tracks.t0 = gpxdaten.tracks.anzahl ? gpxdaten.tracks.track[0].t0 : 0;
 			// Routen
 			var rte = xml.documentElement.getElementsByTagName("rte");
@@ -3775,7 +3938,7 @@ JB.lpgpx = function(fns, id, callback) {
 				gpxdaten = parseGPX(xmlParse(response.asciidata), gpxdaten, id, fnr, time);
 			}
 			if (fns[++fnr]) {
-				JB.Debug_Info(id, fns[fnr].name, false);
+				JB.Debug_Info(id, "calling load file for " + fns[fnr].name, false);
 				JB.loadFile(fns[fnr], "a", lpgpxResponse);
 			} else {
 				callback(gpxdaten);
@@ -3786,7 +3949,7 @@ JB.lpgpx = function(fns, id, callback) {
 			JB.loadFile(fns[fnr], "a", lpgpxResponse);
 		});
 	} // JB.lpgpx
-	// Ende lpgpx.js
+	// Ende lpgpx.js 
 
 JB.LoadScript = function(url, callback) {
 		var scr = document.createElement('script');
@@ -4038,6 +4201,7 @@ JB.GPX2GM.start = function() {
 			}
 			//Melanie
 			document.getElementById("file").onchange = function(){
+				//document.getElementById("loading").style.visibility = "visible"
 				maps["Karte_map1"].ShowGPX(this.files, "Karte");
 			}
 			document.getElementById("update").onclick = function(){
@@ -4046,6 +4210,57 @@ JB.GPX2GM.start = function() {
 			document.getElementById("updateTimeline").onclick = function(){
 				maps["Karte_map1"].myRefreshTimeline();
 			}
+			document.getElementById("mode").onchange = function(){ //Daily, Overview, Hiking
+				switch (document.getElementById("mode").value){
+					case "Overview":
+						document.getElementById("waypointActivated").checked = false;
+						maps["Karte_map1"].GetMap().change("Karte")
+						break;
+					case "Daily":
+						document.getElementById("waypointActivated").checked = true;
+						maps["Karte_map1"].GetMap().change("Karte")
+						break;
+					case "Hiking":
+						document.getElementById("waypointActivated").checked = true;
+						maps["Karte_map1"].GetMap().change("Satellite")
+						break;
+					
+				}
+				maps["Karte_map1"].MyShow();
+			}
+
+
+			document.onkeydown = function(evt) {
+			    evt = evt || window.event;
+			    var key = String.fromCharCode(evt.keyCode);
+			    console.log("keypress "+key);
+			    switch (evt.keyCode) {
+			        case 73: //"I":
+			            document.getElementById("activity").value="Idle";
+			            break;
+			        case 87: //"W":
+			            document.getElementById("activity").value="Walking";
+			            break;
+			        case 66: //"B":
+			            document.getElementById("activity").value="Biking";
+			            break;
+			        case 68: //"D":
+			            document.getElementById("activity").value="Driving";
+			            break;
+			        case 80: //Arrow left (37)-p
+			        	maps["Karte_map1"].getPreviousDay()
+			        	break;
+			        case 78: //Arrow right (39) - n
+			        	maps["Karte_map1"].getNextDay()
+			        	break;
+
+
+    }
+
+
+};
+
+
 			//--Melanie
 		}); // JB.LoadScript("GPX2GM_Defs.js")
 	} // JB.GPX2GM.start
@@ -4061,28 +4276,6 @@ if (JB.GPX2GM.autoload) {
 }
 
 
-document.onkeydown = function(evt) {
-    evt = evt || window.event;
-    var key = String.fromCharCode(evt.keyCode);
-    console.log("keypress "+key);
-    switch (key) {
-        case "I":
-            document.getElementById("activity").value="Idle";
-            break;
-        case "W":
-            document.getElementById("activity").value="Walking";
-            break;
-        case "B":
-            document.getElementById("activity").value="Biking";
-            break;
-        case "D":
-            document.getElementById("activity").value="Driving";
-            break;
-
-    }
-
-
-};
 
 function copyInfosToClipboard(){
     copyTextToClipboard(currentTrackInfo);
@@ -4146,3 +4339,27 @@ function copyTextToClipboard(text) {
     document.body.removeChild(textArea);
 }
 
+
+
+function beep() {
+    var snd = new Audio("data:audio/wav;base64,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qJrx4KOQjahZxWbcZgztj2c49nKmkId44S71j0c8eV9yDK6uPRzx5X18eDvjvQ6yKo9ZSS6l//8elePK/Lf//IInrOF/FvDoADYAGBMGb7FtErm5MXMlmPAJQVgWta7Zx2go+8xJ0UiCb8LHHdftWyLJE0QIAIsI+UbXu67dZMjmgDGCGl1H+vpF4NSDckSIkk7Vd+sxEhBQMRU8j/12UIRhzSaUdQ+rQU5kGeFxm+hb1oh6pWWmv3uvmReDl0UnvtapVaIzo1jZbf/pD6ElLqSX+rUmOQNpJFa/r+sa4e/pBlAABoAAAAA3CUgShLdGIxsY7AUABPRrgCABdDuQ5GC7DqPQCgbbJUAoRSUj+NIEig0YfyWUho1VBBBA//uQZB4ABZx5zfMakeAAAAmwAAAAF5F3P0w9GtAAACfAAAAAwLhMDmAYWMgVEG1U0FIGCBgXBXAtfMH10000EEEEEECUBYln03TTTdNBDZopopYvrTTdNa325mImNg3TTPV9q3pmY0xoO6bv3r00y+IDGid/9aaaZTGMuj9mpu9Mpio1dXrr5HERTZSmqU36A3CumzN/9Robv/Xx4v9ijkSRSNLQhAWumap82WRSBUqXStV/YcS+XVLnSS+WLDroqArFkMEsAS+eWmrUzrO0oEmE40RlMZ5+ODIkAyKAGUwZ3mVKmcamcJnMW26MRPgUw6j+LkhyHGVGYjSUUKNpuJUQoOIAyDvEyG8S5yfK6dhZc0Tx1KI/gviKL6qvvFs1+bWtaz58uUNnryq6kt5RzOCkPWlVqVX2a/EEBUdU1KrXLf40GoiiFXK///qpoiDXrOgqDR38JB0bw7SoL+ZB9o1RCkQjQ2CBYZKd/+VJxZRRZlqSkKiws0WFxUyCwsKiMy7hUVFhIaCrNQsKkTIsLivwKKigsj8XYlwt/WKi2N4d//uQRCSAAjURNIHpMZBGYiaQPSYyAAABLAAAAAAAACWAAAAApUF/Mg+0aohSIRobBAsMlO//Kk4soosy1JSFRYWaLC4qZBYWFRGZdwqKiwkNBVmoWFSJkWFxX4FFRQWR+LsS4W/rFRb/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////VEFHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU291bmRib3kuZGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMjAwNGh0dHA6Ly93d3cuc291bmRib3kuZGUAAAAAAAAAACU=");  
+    snd.play();
+}
+
+function getminmax(daten, o, minmax) {
+			var min = 1e10,
+				max = -1e10;
+			if (typeof(minmax) != "undefined") {
+				min = minmax.min;
+				max = minmax.max;
+			}
+			for (var j = 0; j < daten.length; j++) {
+				var wert = daten[j][o];
+				if (wert < min) min = wert;
+				if (wert > max) max = wert;
+			}
+			return {
+				min: min,
+				max: max
+			};
+		} // getminmax
